@@ -5,6 +5,8 @@ module JsonApiClient
     attr_reader :primary_resource, :primary_resource_methods
 
     def initialize(primary_resource, primary_resource_methods = nil)
+      @classes = {}
+      @class_ids = {} # Keeps track of current class ids
       @primary_resource = primary_resource
       @primary_resource_methods = primary_resource_methods
     end
@@ -17,25 +19,27 @@ module JsonApiClient
 
         apply_linked_resources(resource, data, properties, values)
 
-        class_name = resource_type.camelize.singularize
-        instantiate_struct(class_name, properties, values, &primary_resource_methods)
+        instantiate_struct(resource_type, properties, values, &primary_resource_methods)
       end
     end
 
     private
 
-    def instantiate_struct(class_name, properties, values, &primary_resource_methods)
-      klass = generate_class(class_name, properties, &primary_resource_methods)
+    # Try to make it with the existing struct, if you get a struct size error,
+    # get a new Struct and use that
+    def instantiate_struct(resource_type, properties, values, &primary_resource_methods)
+      klass = generate_class(resource_type, properties, false, &primary_resource_methods)
+      klass.new(*values)
     rescue ArgumentError => e
-      raise e unless e.message == "struct size differs"
-      @class[class_name] = nil
-      klass = generate_class(class_name, properties, &primary_resource_methods)
-    ensure
-      return klass.new(*values)
+      klass = generate_class(resource_type, properties, true, &primary_resource_methods)
+      klass.new(*values)
     end
 
-    def generate_class(class_name, properties, &primary_resource_methods)
-      @classes ||= {}
+    def generate_class(resource_type, properties, regen_class_parts, &primary_resource_methods)
+      base = resource_type.camelize.singularize
+
+      @class_ids[base] = SecureRandom.hex(4) if @class_ids[base].nil? || regen_class_parts
+      class_name = [base, @class_ids[base]].join
       @classes[class_name] ||= Struct.new(class_name, *properties, &primary_resource_methods)
     end
 

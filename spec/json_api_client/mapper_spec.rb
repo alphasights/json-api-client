@@ -61,8 +61,14 @@ describe JsonApiClient::Mapper do
               "author" => "1",
               "comments" => ["1", "2"],
             },
+            "id" => "3",
+            "links" => {
+              "author" => "1",
+              "comments" => ["1", "2"],
+            },
           }, {
               "id" => "2",
+              "extra" => "3",
               "links" => {
                 "author" => "1",
                 "comments" => ["3"],
