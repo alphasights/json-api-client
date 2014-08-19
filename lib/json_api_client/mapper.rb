@@ -1,12 +1,13 @@
 require "active_support/inflector"
+require "ostruct"
 
 module JsonApiClient
   class Mapper
     attr_reader :primary_resource, :primary_resource_methods
 
-    def initialize(primary_resource, primary_resource_methods = nil)
+    def initialize(primary_resource, primary_resource_methods = Proc.new{})
       @primary_resource = primary_resource
-      @primary_resource_methods = primary_resource_methods
+      @custom_method_module = Module.new(&primary_resource_methods)
     end
 
     def call(data, resource_type = primary_resource)
@@ -17,18 +18,11 @@ module JsonApiClient
 
         apply_linked_resources(resource, data, properties, values)
 
-        class_name = resource_type.camelize.singularize
-        klass = generate_class(class_name, properties, &primary_resource_methods)
-        klass.new(*values)
+        OpenStruct.new(Hash[properties.zip(values)]).extend(@custom_method_module)
       end
     end
 
     private
-
-    def generate_class(class_name, properties, &primary_resource_methods)
-      @classes ||= {}
-      @classes[class_name] ||= Struct.new(class_name, *properties, &primary_resource_methods)
-    end
 
     def apply_linked_resources(resource, data, properties, values)
       return {} unless data["linked"]
