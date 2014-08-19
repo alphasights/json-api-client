@@ -1,13 +1,12 @@
 require "active_support/inflector"
-require "ostruct"
 
 module JsonApiClient
   class Mapper
     attr_reader :primary_resource, :primary_resource_methods
 
-    def initialize(primary_resource, primary_resource_methods = Proc.new{})
+    def initialize(primary_resource, primary_resource_methods = nil)
       @primary_resource = primary_resource
-      @custom_method_module = Module.new(&primary_resource_methods)
+      @primary_resource_methods = primary_resource_methods
     end
 
     def call(data, resource_type = primary_resource)
@@ -18,11 +17,27 @@ module JsonApiClient
 
         apply_linked_resources(resource, data, properties, values)
 
-        OpenStruct.new(Hash[properties.zip(values)]).extend(@custom_method_module)
+        class_name = resource_type.camelize.singularize
+        instantiate_struct(class_name, properties, values, &primary_resource_methods)
       end
     end
 
     private
+
+    def instantiate_struct(class_name, properties, values, &primary_resource_methods)
+      klass = generate_class(class_name, properties, &primary_resource_methods)
+    rescue ArgumentError => e
+      raise e unless e.message == "struct size differs"
+      @class[class_name] = nil
+      klass = generate_class(class_name, properties, &primary_resource_methods)
+    ensure
+      return klass.new(*values)
+    end
+
+    def generate_class(class_name, properties, &primary_resource_methods)
+      @classes ||= {}
+      @classes[class_name] ||= Struct.new(class_name, *properties, &primary_resource_methods)
+    end
 
     def apply_linked_resources(resource, data, properties, values)
       return {} unless data["linked"]

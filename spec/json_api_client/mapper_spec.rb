@@ -28,6 +28,14 @@ describe JsonApiClient::Mapper do
         resources = mapper.call(data)
         expect(resources.first.custom_method).to eql("biz")
       end
+
+      it "can overwrite existing properties" do
+        methods = Proc.new{ def property; "biz" end }
+        mapper = described_class.new("resources", methods)
+
+        resources = mapper.call(data)
+        expect(resources.first.property).to eql("biz")
+      end
     end
   end
 
