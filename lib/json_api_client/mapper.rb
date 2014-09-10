@@ -1,3 +1,4 @@
+require "hashie/mash"
 require "active_support/inflector"
 
 module JsonApiClient
@@ -14,36 +15,22 @@ module JsonApiClient
     def call(data, resource_type = primary_resource)
       data.fetch(resource_type).map do |resource|
         except_links = resource.reject { |k, _| k == "links" }
-        properties = except_links.keys.map(&:to_sym)
-        values = except_links.values
 
-        apply_linked_resources(resource, data, properties, values)
+        apply_linked_resources(resource, data, except_links)
 
-        instantiate_struct(resource_type, properties, values, &primary_resource_methods)
+        build_resource(resource_type, except_links, &primary_resource_methods)
       end
     end
 
     private
 
-    # Try to make it with the existing struct, if you get a struct size error,
-    # get a new Struct and use that
-    def instantiate_struct(resource_type, properties, values, &primary_resource_methods)
-      klass = generate_class(resource_type, properties, false, &primary_resource_methods)
-      klass.new(*values)
-    rescue ArgumentError => e
-      klass = generate_class(resource_type, properties, true, &primary_resource_methods)
-      klass.new(*values)
+    def build_resource(resource_type, hash, &primary_resource_methods)
+      Hashie::Mash.new(hash).tap do |mash|
+        mash.instance_exec(&primary_resource_methods) if primary_resource_methods
+      end
     end
 
-    def generate_class(resource_type, properties, regen_class_parts, &primary_resource_methods)
-      base = resource_type.camelize.singularize
-
-      @class_ids[base] = SecureRandom.hex(4) if @class_ids[base].nil? || regen_class_parts
-      class_name = [base, @class_ids[base]].join
-      @classes[class_name] ||= Struct.new(class_name, *properties, &primary_resource_methods)
-    end
-
-    def apply_linked_resources(resource, data, properties, values)
+    def apply_linked_resources(resource, data, hash)
       return {} unless data["linked"]
 
       link_type_map = build_link_type_map(data)
@@ -52,8 +39,7 @@ module JsonApiClient
         type = link_type_map[association]
 
         if linked_resource = get_linked_resources(data, type, id)
-          values << linked_resource
-          properties << association.to_sym
+          hash[association.to_sym] = linked_resource
         end
       end
     end
