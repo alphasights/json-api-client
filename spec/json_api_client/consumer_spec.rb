@@ -34,5 +34,22 @@ describe JsonApiClient::Consumer do
       allow(consumer).to receive(:connection).and_return(connection)
       expect(consumer.get("foo").body).to eql("bar")
     end
+
+    context "when there is a Faraday::Error" do
+      it "raises it's own error" do
+        allow(consumer.connection).to receive(:get).and_raise(Faraday::Error)
+
+        expect{ consumer.get("/foo") }.to raise_error(JsonApiClient::Error)
+      end
+    end
+
+    context "when there is a Faraday::Error::ConnectionError" do
+      it "raises it's own error" do
+        original_error = double
+        allow(consumer.connection).to receive(:get).and_raise(Faraday::Error::ConnectionFailed.new(double))
+
+        expect{ consumer.get("/foo") }.to raise_error(JsonApiClient::Error::ConnectionFailed)
+      end
+    end
   end
 end
