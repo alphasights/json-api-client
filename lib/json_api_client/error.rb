@@ -30,7 +30,6 @@ module JsonApiClient
   end
 
   class ConnectionFailed < ClientError;   end
-  class ConnectionFailed < ClientError;   end
   class ResourceNotFound < ClientError;   end
   class ParsingError     < ClientError;   end
 

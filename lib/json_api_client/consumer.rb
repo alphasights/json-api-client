@@ -18,6 +18,7 @@ module JsonApiClient
     def connection
       @connection ||= Faraday.new(url: config(:base_url)).tap do |connection|
         connection.authorization :Token, config(:token)
+        connection.use Faraday::Response::RaiseError
         connection.use FaradayMiddleware::ParseJson, content_type: /\bjson$/
       end
     end
