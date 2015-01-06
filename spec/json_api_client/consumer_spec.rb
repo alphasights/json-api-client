@@ -35,6 +35,20 @@ describe JsonApiClient::Consumer do
       expect(consumer.get("foo").body).to eql("bar")
     end
 
+    it "forwards params" do
+      response = double(body: "response")
+
+      expect(consumer.connection).to receive(:get).with("http://google.com", foo: "bar").and_return(response)
+      expect(consumer.get("http://google.com", foo: "bar").body).to eql("response")
+    end
+
+    it "merges params" do
+      response = double(body: "response")
+
+      expect(consumer.connection).to receive(:get).with("http://google.com?test=param", foo: "bar").and_return(response)
+      expect(consumer.get("http://google.com?test=param", foo: "bar").body).to eql("response")
+    end
+
     context "when there is a Faraday::Error" do
       it "raises it's own error" do
         allow(consumer.connection).to receive(:get).and_raise(Faraday::Error)

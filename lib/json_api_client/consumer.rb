@@ -7,8 +7,8 @@ module JsonApiClient
       @name = name
     end
 
-    def get(url)
-      connection.get(url) do |request|
+    def get(url, params = {})
+      connection.get(url, params) do |request|
         request.headers["Content-Type"] = "application/vnd.api+json"
       end
     rescue Faraday::Error => e
