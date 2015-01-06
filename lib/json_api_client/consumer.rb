@@ -11,7 +11,7 @@ module JsonApiClient
       connection.get(url) do |request|
         request.headers["Content-Type"] = "application/vnd.api+json"
       end
-    rescue Faraday::Error::ClientError => e
+    rescue Faraday::Error => e
       raise "JsonApiClient::#{e.class.name.demodulize}".constantize.new(e)
     end
 
