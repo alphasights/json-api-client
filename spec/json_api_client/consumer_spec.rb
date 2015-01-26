@@ -23,8 +23,21 @@ describe JsonApiClient::Consumer do
     end
   end
 
+  %i(put post).each do |verb|
+    it "it perform a #{verb} request on the connection" do
+      connection = Faraday.new do |builder|
+        builder.adapter :test do |stub|
+          stub.public_send(verb, "/foo", '{"bar":"baz"}'){ [200, { "Accept" => "application/vnd.api+json" }, "bar"] }
+        end
+      end
+
+      allow(consumer).to receive(:connection).and_return(connection)
+      expect(consumer.public_send(verb, "foo", "bar" => "baz").body).to eql("bar")
+    end
+  end
+
   describe "#get" do
-    it "it call a GET request on the connection" do
+    it "performs a get request on the connection" do
       connection = Faraday.new do |builder|
         builder.adapter :test do |stub|
           stub.get("/foo"){ [200, { "Accept" => "application/vnd.api+json" }, "bar"] }

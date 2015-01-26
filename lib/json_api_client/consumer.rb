@@ -1,5 +1,6 @@
 require "faraday"
 require "faraday_middleware"
+require "oj"
 
 module JsonApiClient
   class Consumer
@@ -7,12 +8,17 @@ module JsonApiClient
       @name = name
     end
 
-    def get(url, params = {})
-      connection.get(url, params) do |request|
-        request.headers["Content-Type"] = "application/vnd.api+json"
+    %i(get put post).each do |verb|
+      define_method(verb) do |url, params = {}|
+        begin
+          connection.public_send(verb, url, params) do |request|
+            request.headers["Content-Type"] = "application/vnd.api+json"
+            request.body = Oj.dump(params) if params_as_json_body?(verb)
+          end
+        rescue Faraday::Error => e
+          raise "JsonApiClient::#{e.class.name.demodulize}".constantize.new(e)
+        end
       end
-    rescue Faraday::Error => e
-      raise "JsonApiClient::#{e.class.name.demodulize}".constantize.new(e)
     end
 
     def connection
@@ -24,6 +30,10 @@ module JsonApiClient
     end
 
     private
+
+    def params_as_json_body?(verb)
+      %i(put post).include?(verb)
+    end
 
     def config(key)
       env_var = "#{@name}_#{key}".upcase
